@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ระบบติดตามสถานะและอายุการใช้งานอุปกรณ์คอมพิวเตอร์ด้วย QR Code</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F6F9;--card:#FFFFFF;--text:#1B2430;--muted:#3D4756;--line:#DDE2EA;--line2:#C5CCD8;--navy:#17324F;--navy-text:#FFFFFF;--navy-sub:#C9D6E6;--head2:#ECEFF4;
+  --ok:#1E6B2E;--ok-bg:#E3F2E5;--warn:#8A5200;--warn-bg:#FFF0D0;--info:#0A5C91;--info-bg:#DDEFFB;--bad:#B3261E;--bad-bg:#FCE4E2;--off:#4B5563;--off-bg:#E8EAEE;
+  --dot-ok:#2E7D32;--dot-warn:#C77700;--dot-info:#0B6AA8;--dot-bad:#C62828;--dot-off:#5F6672;
+  --tab-idle:#5B6675;--input-bg:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E141E;--card:#18202D;--text:#E8ECF4;--muted:#B4BECE;--line:#2C3648;--line2:#3B475C;--navy:#17324F;--head2:#222B3A;
+    --ok:#7AD07F;--ok-bg:#16301A;--warn:#F2B45A;--warn-bg:#3A2A0B;--info:#7CC4F2;--info-bg:#0F2A3C;--bad:#FF8A8A;--bad-bg:#3D1A1A;--off:#B4BCC8;--off-bg:#262C38;
+    --tab-idle:#9AA5B8;--input-bg:#18202D;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"IBM Plex Sans Thai",Sarabun,"TH Sarabun New",Tahoma,"Noto Sans Thai",system-ui,sans-serif;font-size:16px;line-height:1.45}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:var(--text)}
+#app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;background:var(--bg);padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+@media (min-width:520px){#app{box-shadow:0 0 0 1px var(--line)}}
+
+/* header */
+.hd{position:relative;background:var(--navy);color:var(--navy-text);padding:calc(28px + env(safe-area-inset-top,0px)) 20px 20px;display:flex;align-items:center;gap:10px}
+.hd h1{margin:0;font-size:24px;font-weight:700;line-height:1.3}
+.hd .sub{font-size:14px;color:var(--navy-sub);margin-top:2px}
+.hd .grow{flex:1;min-width:0}
+.hd.back{padding:calc(22px + env(safe-area-inset-top,0px)) 12px 16px 12px;gap:4px}
+.hd.back h1{font-size:20px}
+.backbtn{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;cursor:pointer;flex-shrink:0}
+.rolechip{position:absolute;top:calc(5px + env(safe-area-inset-top,0px));right:14px;z-index:2;background:#fff;color:var(--navy);font-size:12px;font-weight:700;line-height:16px;padding:1px 10px;border-radius:99px}
+.hd-btn{height:44px;padding:0 14px;border-radius:10px;border:0;background:#fff;color:var(--navy);font-weight:700;cursor:pointer;font-size:15px;white-space:nowrap}
+.hd-link{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;height:36px;padding:0 12px;border-radius:10px;cursor:pointer;font-size:14px;white-space:nowrap}
+.searchbar{background:var(--navy);padding:0 20px 16px}
+.searchbox{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:0 14px;height:48px;color:#5B6675}
+.searchbox input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:16px;color:#1B2430;height:100%}
+
+/* content */
+.ct{padding:16px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat .l{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-weight:500}
+.stat .n{font-size:32px;font-weight:700;line-height:1.2}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.sec{display:flex;justify-content:space-between;align-items:baseline}
+.sec h2{margin:0;font-size:18px;font-weight:600}
+.sec a,.sec button{font-size:14px;color:var(--navy);font-weight:600;background:none;border:0;cursor:pointer}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sec a,:root:not([data-theme="light"]) .sec button{color:#7CC4F2}}
+.col{display:flex;flex-direction:column;gap:10px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+.item .t{font-size:16px;font-weight:600}
+.item .m{font-size:14px;color:var(--muted)}
+.item .m.bad{color:var(--bad);font-weight:500}
+.badge{display:inline-block;font-size:13px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}.b-info{background:var(--info-bg);color:var(--info)}.b-bad{background:var(--bad-bg);color:var(--bad)}.b-off{background:var(--off-bg);color:var(--off)}
+.empty{color:var(--muted);text-align:center;padding:22px 8px}
+.note{color:var(--muted);font-size:14px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 4px;white-space:nowrap;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{background:var(--card);color:var(--muted);border:1px solid var(--line);font-size:14px;font-weight:500;padding:7px 14px;border-radius:99px;cursor:pointer;flex-shrink:0}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:600}
+.fab{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom,0px));right:max(18px,calc(50% - 240px + 18px));width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;border:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(23,50,79,.35);cursor:pointer;z-index:5}
+
+/* forms */
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:14px;font-weight:600;color:var(--muted)}
+.f input,.f select,.inp{height:48px;border:1px solid var(--line2);border-radius:12px;padding:0 12px;background:var(--input-bg);font-size:16px;width:100%;min-width:0}
+.f2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.btn{height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line2);background:var(--card);color:var(--navy);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn:not(.pri):not(.danger){color:#9CC8F2}}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1 1 0;min-width:0}
+.row>.fix{flex:0 0 auto}
+.stickybar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,480px);display:flex;gap:10px;background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(20px + env(safe-area-inset-bottom,0px));z-index:6}
+
+/* tabs */
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,480px);display:flex;background:var(--card);border-top:1px solid var(--line);padding:8px 6px calc(14px + env(safe-area-inset-bottom,0px));z-index:6}
+.tab{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:48px;justify-content:center;color:var(--tab-idle);font-size:13px;font-weight:500;background:none;border:0;cursor:pointer}
+.tab.on{color:var(--navy);font-weight:700}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tab.on{color:#7CC4F2}}
+
+/* login */
+.login-top{background:var(--navy);color:#fff;padding:calc(72px + env(safe-area-inset-top,0px)) 28px 56px;display:flex;flex-direction:column;gap:14px}
+.login-top h1{margin:0;font-size:28px;line-height:1.3}
+.login-top p{margin:0;font-size:16px;color:var(--navy-sub)}
+.login-card{margin:-28px 20px 0;padding:20px;border-radius:16px;display:flex;flex-direction:column;gap:14px}
+.login-card h2{margin:0;font-size:20px}
+.err{color:var(--bad);font-size:14px;font-weight:600;min-height:20px}
+
+/* scan */
+.vf{position:relative;height:340px;border-radius:18px;background:#0F1B2B;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.vf video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vf .box{position:relative;width:210px;height:210px}
+.vf .c{position:absolute;width:44px;height:44px;border:5px solid #fff}
+.vf .c1{left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:14px}
+.vf .c2{right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:14px}
+.vf .c3{left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:14px}
+.vf .c4{right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:14px}
+.vf .ln{position:absolute;left:14px;right:14px;top:50%;height:3px;background:#5AA0E0;border-radius:2px}
+.vf .hint{position:absolute;left:0;right:0;bottom:16px;text-align:center;color:#E8EDF5;font-size:15px;font-weight:500;padding:0 12px}
+
+/* detail */
+.kv{padding:6px 14px}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv div:last-child{border-bottom:0}
+.kv span:first-child{color:var(--muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.qrcard{display:flex;gap:14px;align-items:center}
+.qrcard canvas{width:120px;height:120px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px}
+.hist div{font-size:14px;color:var(--muted);padding:3px 0}
+.hist b{color:var(--text)}
+
+/* tables */
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.tr{display:grid;grid-template-columns:1fr 76px 76px;font-size:15px;padding:7px 14px;border-top:1px solid var(--line)}
+.tr.h{background:var(--head2);font-weight:600;font-size:14px;border-top:0;padding:8px 14px}
+.tr.t{background:var(--head2);font-weight:700;border-top:1px solid var(--line2)}
+.tr span:nth-child(n+2){text-align:center}
+
+/* modal + toast */
+#overlay{position:fixed;inset:0;background:rgba(10,14,22,.55);display:flex;align-items:flex-start;justify-content:center;padding:calc(14px + env(safe-area-inset-top,0px)) 10px 14px;overflow-y:auto;z-index:20}
+#overlay[hidden]{display:none}
+.modal{background:var(--card);border-radius:16px;max-width:460px;width:100%;padding:16px;border:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.modal h3{margin:0;font-size:19px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));background:#222;color:#fff;padding:10px 16px;border-radius:12px;font-size:15px;z-index:30;max-width:90%;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="overlay" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* โหลดตัวถอดรหัส QR (jsQR): ลอง cdnjs -> jsDelivr -> ไฟล์ในโฟลเดอร์ (jsQR.min.js) */
+(function(){
+  var srcs=['https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js','https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','jsQR.min.js'];
+  function load(i){
+    if(window.jsQR||i>=srcs.length)return;
+    var s=document.createElement('script');s.src=srcs[i];
+    s.onload=function(){if(!window.jsQR)load(i+1);};
+    s.onerror=function(){load(i+1);};
+    document.head.appendChild(s);
+  }
+  load(0);
+})();
+</script>
+<script>
+/* minimal QR encoder: byte mode, EC level M, versions 1-6 (up to ~106 bytes) */
+const QR=(function(){
+const EXP=new Array(512).fill(0),LOG=new Array(256).fill(0);
+let x=1;for(let i=0;i<255;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&256)x^=0x11d;}
+for(let i=255;i<512;i++)EXP[i]=EXP[i-255];
+const gmul=(a,b)=>(a===0||b===0)?0:EXP[LOG[a]+LOG[b]];
+function rsGen(n){let g=[1];for(let i=0;i<n;i++){const ng=new Array(g.length+1).fill(0);g.forEach((c,j)=>{ng[j]^=c;ng[j+1]^=gmul(c,EXP[i]);});g=ng;}return g;}
+function rs(data,n){const g=rsGen(n);let r=new Array(n).fill(0);for(const d of data){const f=d^r[0];r=r.slice(1).concat([0]);for(let i=0;i<n;i++)r[i]^=gmul(g[i+1],f);}return r;}
+const VER={1:[26,10,[[1,16]]],2:[44,16,[[1,28]]],3:[70,26,[[1,44]]],4:[100,18,[[2,32]]],5:[134,24,[[2,43]]],6:[172,16,[[4,27]]]};
+const ALIGN={1:[],2:[6,18],3:[6,22],4:[6,26],5:[6,30],6:[6,34]};
+function utf8(s){return Array.from(new TextEncoder().encode(s));}
+function encode(text){
+ const data=utf8(text);let v=0,ec=0,bl=null,cap=0;
+ for(const k of Object.keys(VER)){const [tot,e,b]=VER[k];const c=b.reduce((a,p)=>a+p[0]*p[1],0);if(data.length+2<=c){v=+k;ec=e;bl=b;cap=c;break;}}
+ if(!v)throw new Error('ข้อความยาวเกินไปสำหรับ QR');
+ let bits='0100'+data.length.toString(2).padStart(8,'0')+data.map(b=>b.toString(2).padStart(8,'0')).join('');
+ bits+='0'.repeat(Math.min(4,cap*8-bits.length));bits+='0'.repeat((8-bits.length%8)%8);
+ const cw=[];for(let i=0;i<bits.length;i+=8)cw.push(parseInt(bits.slice(i,i+8),2));
+ const pad=[0xEC,0x11];let k=0;while(cw.length<cap){cw.push(pad[k%2]);k++;}
+ const blocks=[];let pos=0;for(const [c,d] of bl){for(let i=0;i<c;i++){blocks.push(cw.slice(pos,pos+d));pos+=d;}}
+ const ecs=blocks.map(b=>rs(b,ec));const fin=[];
+ const mx=Math.max(...blocks.map(b=>b.length));
+ for(let i=0;i<mx;i++)for(const b of blocks)if(i<b.length)fin.push(b[i]);
+ for(let i=0;i<ec;i++)for(const e of ecs)fin.push(e[i]);
+ const n=17+4*v;const M=Array.from({length:n},()=>new Array(n).fill(null));const F=Array.from({length:n},()=>new Array(n).fill(false));
+ const setm=(r,c,val)=>{if(r>=0&&r<n&&c>=0&&c<n){M[r][c]=val;F[r][c]=true;}};
+ function finder(r,c){for(let dr=-1;dr<8;dr++)for(let dc=-1;dc<8;dc++){const rr=r+dr,cc=c+dc;if(rr<0||rr>=n||cc<0||cc>=n)continue;
+  if(dr>=0&&dr<=6&&dc>=0&&dc<=6&&(dr===0||dr===6||dc===0||dc===6||(dr>=2&&dr<=4&&dc>=2&&dc<=4)))setm(rr,cc,1);else setm(rr,cc,0);}}
+ finder(0,0);finder(0,n-7);finder(n-7,0);
+ for(let i=8;i<n-8;i++){setm(6,i,i%2===0?1:0);setm(i,6,i%2===0?1:0);}
+ const al=ALIGN[v];
+ for(const r of al)for(const c of al){
+  if((r===6&&c===6)||(r===6&&c===al[al.length-1])||(r===al[al.length-1]&&c===6))continue;
+  for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++)setm(r+dr,c+dc,Math.max(Math.abs(dr),Math.abs(dc))!==1?1:0);}
+ setm(n-8,8,1);
+ for(let i=0;i<9;i++){F[8][i]=true;F[i][8]=true;}
+ for(let i=0;i<8;i++){F[8][n-1-i]=true;F[n-1-i][8]=true;}
+ const bq=[];for(const b of fin)for(let i=0;i<8;i++)bq.push((b>>(7-i))&1);
+ function place(mk){const G=M.map(r=>r.slice());let idx=0,up=true,c=n-1;
+  while(c>0){if(c===6)c--;
+   for(let t=0;t<n;t++){const r=up?n-1-t:t;for(const cc of [c,c-1]){if(!F[r][cc]){let bit=idx<bq.length?bq[idx]:0;idx++;if(mk(r,cc))bit^=1;G[r][cc]=bit;}}}
+   up=!up;c-=2;}
+  return G;}
+ const masks=[(r,c)=>(r+c)%2===0,(r,c)=>r%2===0,(r,c)=>c%3===0,(r,c)=>(r+c)%3===0,(r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2===0,(r,c)=>(r*c)%2+(r*c)%3===0,(r,c)=>((r*c)%2+(r*c)%3)%2===0,(r,c)=>(((r+c)%2)+(r*c)%3)%2===0];
+ function fmt(m){const d=m;let r=d<<10;for(let i=14;i>9;i--)if((r>>i)&1)r^=0x537<<(i-10);return((d<<10)|r)^0x5412;}
+ function apply(G,m){const f=fmt(m);const b=[];for(let i=0;i<15;i++)b.push((f>>i)&1);
+  for(let i=0;i<6;i++)G[i][8]=b[i];G[7][8]=b[6];G[8][8]=b[7];G[8][7]=b[8];
+  for(let i=9;i<15;i++)G[8][14-i]=b[i];
+  for(let i=0;i<8;i++)G[8][n-1-i]=b[i];
+  for(let i=8;i<15;i++)G[n-15+i][8]=b[i];
+  G[n-8][8]=1;return G;}
+ function penalty(G){let p=0;const T=G[0].map((_,c)=>G.map(r=>r[c]));
+  for(const g of [G,T])for(const row of g){let run=1;for(let i=1;i<n;i++){if(row[i]===row[i-1]){run++;if(run===5)p+=3;else if(run>5)p+=1;}else run=1;}}
+  for(let r=0;r<n-1;r++)for(let c=0;c<n-1;c++)if(G[r][c]===G[r+1][c]&&G[r][c]===G[r][c+1]&&G[r][c]===G[r+1][c+1])p+=3;
+  return p;}
+ let best=null;for(let m=0;m<8;m++){const G=apply(place(masks[m]),m);const s=penalty(G);if(best===null||s<best[0])best=[s,G];}
+ return best[1];
+}
+return {encode};
+})();
+if(typeof module!=='undefined')module.exports=QR;
+
+</script>
+<script>
+/* ระบบติดตามสถานะและอายุการใช้งานอุปกรณ์คอมพิวเตอร์ด้วย QR Code
+   UC-01 เข้าสู่ระบบ | UC-02 จัดการข้อมูลอุปกรณ์ | UC-03 สร้างและพิมพ์ QR Code
+   UC-04 สแกน QR Code | UC-05 ปรับปรุงสถานะ | UC-06 ดูอายุการใช้งาน/แจ้งเตือน | UC-07 ออกรายงาน */
+(function () {
+'use strict';
+
+/* ================= ค่าคงที่ ================= */
+var STATUSES = ['ใช้งานปกติ', 'อยู่ระหว่างซ่อม', 'ชำรุด', 'จำหน่ายออก'];   // สถานะที่ผู้ใช้เลือกได้
+var NEAR = 'ใกล้หมดอายุการใช้งาน';                                         // สถานะที่ระบบคำนวณให้
+var ALL = ['ใช้งานปกติ', 'อยู่ระหว่างซ่อม', 'ชำรุด', NEAR, 'จำหน่ายออก'];
+var CATS = ['คอมพิวเตอร์ตั้งโต๊ะ', 'โน้ตบุ๊ก', 'เครื่องพิมพ์', 'จอภาพ', 'อุปกรณ์เครือข่าย', 'อื่น ๆ'];
+var PREFIX = { 'คอมพิวเตอร์ตั้งโต๊ะ': 'PC', 'โน้ตบุ๊ก': 'NB', 'เครื่องพิมพ์': 'PR', 'จอภาพ': 'MN', 'อุปกรณ์เครือข่าย': 'NW', 'อื่น ๆ': 'OT' };
+var DEFAULT_LIFE_YEARS = 5;
+var K = { items: 'qrt:items:v2', users: 'qrt:users:v2', alert: 'qrt:alert:v2', session: 'qrt:session:v2' };
+var ROLE_LABEL = { admin: 'ผู้ดูแลระบบ', staff: 'เจ้าหน้าที่' };
+var PERMS = { admin: ['manage', 'qr', 'report', 'users', 'scan', 'status', 'view'], staff: ['scan', 'status', 'view'] };
+
+/* ================= สถานะของแอป ================= */
+var S = { items: {}, users: [], alert: 6, session: null, view: { name: 'dash' }, search: '', filter: '' };
+
+function $(s) { return document.querySelector(s); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function toast(m) { var t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove('show'); }, 2800); }
+function jget(store, key, def) { try { var v = store.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
+function jset(store, key, val) { try { store.setItem(key, JSON.stringify(val)); return true; } catch (e) { toast('บันทึกลงเบราว์เซอร์ไม่ได้ (พื้นที่เต็มหรือถูกปิดการใช้งาน)'); return false; } }
+function can(a) { return !!S.session && PERMS[S.session.role].indexOf(a) >= 0; }
+function list() { return Object.keys(S.items).map(function (k) { return S.items[k]; }); }
+function saveItems() { return jset(localStorage, K.items, S.items); }
+function saveUsers() { return jset(localStorage, K.users, S.users); }
+
+/* ================= วันที่/อายุการใช้งาน (UC-06) ================= */
+function parseD(s) { var p = String(s || '').split('-'); if (p.length !== 3) return null; var d = new Date(+p[0], +p[1] - 1, +p[2]); return isNaN(d) ? null : d; }
+function monthsBetween(d1, d2) { var m = (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth(); if (d2.getDate() < d1.getDate()) m--; return Math.max(0, m); }
+function ageMonths(it) { var d = parseD(it.purchaseDate); return d ? monthsBetween(d, new Date()) : 0; }
+function remainMonths(it) { return Math.round((Number(it.lifespanYears) || DEFAULT_LIFE_YEARS) * 12) - ageMonths(it); }
+function fmtMonths(m) { var y = Math.floor(m / 12), r = m % 12; return (y ? y + ' ปี ' : '') + (r || !y ? r + ' เดือน' : ''); }
+function fmtDate(s) { var d = parseD(s); return d ? d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'; }
+function effStatus(it) { return (it.status === 'ใช้งานปกติ' && remainMonths(it) <= S.alert) ? NEAR : it.status; }
+function badgeCls(s) { return { 'ใช้งานปกติ': 'b-ok', 'ใกล้หมดอายุการใช้งาน': 'b-warn', 'อยู่ระหว่างซ่อม': 'b-info', 'ชำรุด': 'b-bad', 'จำหน่ายออก': 'b-off' }[s] || 'b-off'; }
+function badge(s) { return '<span class="badge ' + badgeCls(s) + '">' + esc(s === NEAR ? 'ใกล้หมดอายุ' : s) + '</span>'; }
+function dotColor(s) { return { 'ใช้งานปกติ': 'var(--dot-ok)', 'ใกล้หมดอายุการใช้งาน': 'var(--dot-warn)', 'อยู่ระหว่างซ่อม': 'var(--dot-info)', 'ชำรุด': 'var(--dot-bad)', 'จำหน่ายออก': 'var(--dot-off)' }[s]; }
+function remainText(it) { var r = remainMonths(it); return r < 0 ? 'เกินกำหนด ' + fmtMonths(-r) : 'เหลืออายุใช้งาน ' + fmtMonths(r); }
+function ageLine(it) { var r = remainMonths(it); return 'ใช้งานมา ' + fmtMonths(ageMonths(it)) + ' · ' + (r < 0 ? 'เกินกำหนด ' + fmtMonths(-r) : 'เหลือ ' + fmtMonths(r)); }
+
+/* ================= SHA-256 + บัญชีผู้ใช้ (UC-01) ================= */
+/* SHA-256 (pure JS, works without a secure context). Input: JS string. Output: hex. */
+function sha256hex(str){
+  var ascii=unescape(encodeURIComponent(str));
+  function rr(v,a){return (v>>>a)|(v<<(32-a));}
+  var m=Math.pow,mw=m(2,32),i,j,result='';
+  var words=[],asl=ascii.length*8;
+  var hash=sha256hex.h=sha256hex.h||[],k=sha256hex.k=sha256hex.k||[],pc=k.length;
+  var ic={};
+  for(var c=2;pc<64;c++){if(!ic[c]){for(i=0;i<313;i+=c)ic[i]=c;hash[pc]=(m(c,.5)*mw)|0;k[pc++]=(m(c,1/3)*mw)|0;}}
+  ascii+='\x80';
+  while(ascii.length%64-56)ascii+='\x00';
+  for(i=0;i<ascii.length;i++){j=ascii.charCodeAt(i);words[i>>2]|=j<<((3-i)%4)*8;}
+  words[words.length]=((asl/mw)|0);
+  words[words.length]=(asl);
+  for(j=0;j<words.length;){
+    var w=words.slice(j,j+=16),oh=hash;
+    hash=hash.slice(0,8);
+    for(i=0;i<64;i++){
+      var w15=w[i-15],w2=w[i-2];
+      var a=hash[0],e=hash[4];
+      var t1=hash[7]+(rr(e,6)^rr(e,11)^rr(e,25))+((e&hash[5])^((~e)&hash[6]))+k[i]+(w[i]=(i<16)?w[i]:(w[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+w[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10)))|0);
+      var t2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash=[(t1+t2)|0].concat(hash);
+      hash[4]=(hash[4]+t1)|0;
+    }
+    for(i=0;i<8;i++)hash[i]=(hash[i]+oh[i])|0;
+  }
+  for(i=0;i<8;i++)for(j=3;j+1;j--){var b=(hash[i]>>(j*8))&255;result+=((b<16)?0:'')+b.toString(16);}
+  return result;
+}
+if(typeof module!=='undefined')module.exports=sha256hex;
+
+function randSalt() { var a = new Uint8Array(8); (window.crypto || window.msCrypto).getRandomValues(a); return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
+function pwHash(salt, pw) { return sha256hex(salt + ':' + pw); }
+function findUser(name) { name = String(name || '').trim().toLowerCase(); for (var i = 0; i < S.users.length; i++) if (S.users[i].username.toLowerCase() === name) return S.users[i]; return null; }
+function addUser(username, pw, role) { var salt = randSalt(); S.users.push({ username: username, role: role, salt: salt, hash: pwHash(salt, pw) }); return saveUsers(); }
+function validUser(u, p) {
+  if (!/^[A-Za-z0-9_.-]{3,30}$/.test(u)) return 'ชื่อผู้ใช้ต้องเป็นตัวอักษรอังกฤษ/ตัวเลข 3-30 ตัว';
+  if (String(p).length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+  return '';
+}
+function login(u, p) {
+  var user = findUser(u);
+  if (!user || user.hash !== pwHash(user.salt, p)) return false;
+  S.session = { username: user.username, role: user.role };
+  try { sessionStorage.setItem(K.session, JSON.stringify(S.session)); } catch (e) {}
+  return true;
+}
+function logout() { stopCam(); S.session = null; try { sessionStorage.removeItem(K.session); } catch (e) {} nav('login'); }
+
+/* ================= ไอคอน ================= */
+var IC = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  scan: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/>',
+  chart: '<path d="M5 20V11M12 20V4M19 20v-6"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'
+};
+function svg(n, size, sw) { return '<svg aria-hidden="true" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 2) + '" stroke-linecap="round" stroke-linejoin="round">' + IC[n] + '</svg>'; }
+
+/* ================= การนำทาง ================= */
+function nav(name, param) {
+  if (name !== 'scan') stopCam();
+  S.view = { name: name, param: param };
+  render();
+  window.scrollTo(0, 0);
+}
+
+function tabbar(active) {
+  var t = [['dash', 'ภาพรวม', 'grid'], ['list', 'อุปกรณ์', 'list'], ['scan', 'สแกน QR', 'scan']];
+  if (can('report')) t.push(['report', 'รายงาน', 'chart']);
+  return '<nav class="tabs" aria-label="เมนูหลัก">' + t.map(function (x) {
+    return '<button type="button" class="tab' + (x[0] === active ? ' on' : '') + '" data-nav="' + x[0] + '"' + (x[0] === active ? ' aria-current="page"' : '') + '>' + svg(x[2], 24) + x[1] + '</button>';
+  }).join('') + '</nav>';
+}
+function chipRole() { return '<span class="rolechip">' + esc(ROLE_LABEL[S.session.role]) + '</span>'; }
+function head(title, sub, right) {
+  return '<header class="hd">' + chipRole() + '<div class="grow"><h1>' + esc(title) + '</h1>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' + (right || '') + '</header>';
+}
+function headBack(title, sub, backTo, right) {
+  return '<header class="hd back">' + chipRole() + '<button type="button" class="backbtn" aria-label="ย้อนกลับ" data-nav="' + backTo + '">' + svg('back', 26, 2.2) + '</button><div class="grow"><h1>' + esc(title) + '</h1>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' + (right || '') + '</header>';
+}
+
+/* ================= หน้าจอ ================= */
+function viewSetup() {
+  return '<div class="login-top"><h1>ตั้งค่าเริ่มต้น</h1><p>สร้างบัญชีผู้ดูแลระบบคนแรก</p></div>' +
+    '<form class="card login-card" data-form="setup" autocomplete="off"><h2>บัญชีผู้ดูแลระบบ</h2>' +
+    '<div class="f"><label for="su">ชื่อผู้ใช้</label><input id="su" required></div>' +
+    '<div class="f"><label for="sp">รหัสผ่าน (อย่างน้อย 6 ตัว)</label><input id="sp" type="password" required></div>' +
+    '<div class="f"><label for="sp2">ยืนยันรหัสผ่าน</label><input id="sp2" type="password" required></div>' +
+    '<div class="err" id="err"></div><button class="btn pri" type="submit">สร้างบัญชีและเข้าสู่ระบบ</button></form>';
+}
+function viewLogin() {
+  return '<div class="login-top">' + svg('scan', 56, 1.8) + '<h1>ระบบติดตามอุปกรณ์คอมพิวเตอร์</h1><p>ติดตามสถานะและอายุการใช้งานด้วย QR Code</p></div>' +
+    '<form class="card login-card" data-form="login"><h2>เข้าสู่ระบบ</h2>' +
+    '<div class="f"><label for="lu">ชื่อผู้ใช้</label><input id="lu" autocomplete="username" required></div>' +
+    '<div class="f"><label for="lp">รหัสผ่าน</label><input id="lp" type="password" autocomplete="current-password" required></div>' +
+    '<div class="err" id="err"></div><button class="btn pri" type="submit">เข้าสู่ระบบ</button></form>' +
+    '<p class="note" style="padding:14px 24px;line-height:1.5">ผู้ดูแลระบบจัดการข้อมูลอุปกรณ์ สร้าง QR Code และออกรายงานได้ เจ้าหน้าที่สแกน QR Code ดูอายุการใช้งาน และปรับปรุงสถานะได้</p>';
+}
+
+function itemRow(i) {
+  return '<div class="card item" data-nav="detail" data-code="' + esc(i.code) + '" role="button" tabindex="0"><div><div class="t">' + esc(i.code) + ' · ' + esc(i.name) + '</div><div class="m">' + esc(i.dept || i.category || '') + '</div><div class="m' + (remainMonths(i) < 0 ? ' bad' : '') + '">' + esc(ageLine(i)) + '</div></div>' + badge(effStatus(i)) + '</div>';
+}
+function viewDash() {
+  var items = list(), cnt = {}; ALL.forEach(function (s) { cnt[s] = 0; }); items.forEach(function (i) { cnt[effStatus(i)]++; });
+  var near = items.filter(function (i) { return i.status !== 'จำหน่ายออก' && remainMonths(i) <= S.alert; }).sort(function (a, b) { return remainMonths(a) - remainMonths(b); }).slice(0, 5);
+  var h = head('ภาพรวมอุปกรณ์', 'ผู้ใช้: ' + S.session.username, '<button type="button" class="hd-link" data-act="logout">ออกจากระบบ</button>');
+  h += '<div class="ct"><div class="grid2"><div class="card stat"><div class="l">อุปกรณ์ทั้งหมด</div><div class="n">' + items.length + '</div></div>';
+  ALL.forEach(function (s) { h += '<div class="card stat"><div class="l"><span class="dot" style="background:' + dotColor(s) + '"></span>' + esc(s === NEAR ? 'ใกล้หมดอายุ' : s) + '</div><div class="n">' + cnt[s] + '</div></div>'; });
+  h += '</div><div class="col"><div class="sec"><h2>ต้องดำเนินการ</h2><button type="button" data-nav="list">ดูทั้งหมด</button></div>';
+  h += near.length ? near.map(function (i) {
+    return '<div class="card item" data-nav="detail" data-code="' + esc(i.code) + '" role="button" tabindex="0"><div><div class="t">' + esc(i.code) + ' · ' + esc(i.name) + '</div><div class="m' + (remainMonths(i) < 0 ? ' bad' : '') + '">' + esc(remainText(i)) + '</div></div>' + badge(effStatus(i)) + '</div>';
+  }).join('') : '<div class="card empty">ยังไม่มีอุปกรณ์ที่ต้องแจ้งเตือน (เหลืออายุไม่เกิน ' + S.alert + ' เดือน)</div>';
+  h += '</div>';
+  if (!items.length) h += '<div class="card empty">ยังไม่มีข้อมูลอุปกรณ์' + (can('manage') ? '<br><span class="note">เริ่มจากแท็บ “อุปกรณ์” แล้วกดปุ่ม +</span>' : '<br><span class="note">รอผู้ดูแลระบบเพิ่มข้อมูลอุปกรณ์</span>') + '</div>';
+  if (can('users')) h += '<div class="card"><div class="sec"><h2 style="font-size:16px">บัญชีผู้ใช้</h2><button type="button" data-act="users">จัดการบัญชี</button></div><div class="note">เพิ่มบัญชีเจ้าหน้าที่ หรือเปลี่ยนรหัสผ่านได้ที่นี่</div></div>';
+  if (can('manage') && items.some(function (i) { return i.demo; })) h += '<div class="card note">มีข้อมูลตัวอย่างอยู่ในระบบ (ใช้ทดลองเท่านั้น) <button type="button" class="btn danger" style="height:36px;font-size:14px" data-act="undemo">ลบข้อมูลตัวอย่างทั้งหมด</button></div>';
+  else if (can('manage') && !items.length) h += '<div class="card note">อยากลองใช้งานก่อน? <button type="button" class="btn" style="height:36px;font-size:14px" data-act="demo">เพิ่มข้อมูลตัวอย่าง</button></div>';
+  return h + '</div>' + tabbar('dash');
+}
+
+function viewList() {
+  var q = S.search.trim().toLowerCase();
+  var items = list().filter(function (i) {
+    return (!S.filter || effStatus(i) === S.filter) && (!q || [i.code, i.name, i.brand, i.serial, i.dept, i.category].join(' ').toLowerCase().indexOf(q) >= 0);
+  }).sort(function (a, b) { return a.code.localeCompare(b.code); });
+  var chips = [['', 'ทั้งหมด']].concat(ALL.map(function (s) { return [s, s === NEAR ? 'ใกล้หมดอายุ' : s]; }));
+  var h = '<header class="hd" style="padding-bottom:12px">' + chipRole() + '<div class="grow"><h1>อุปกรณ์</h1></div></header>' +
+    '<div class="searchbar"><label class="searchbox">' + svg('search', 22) + '<input id="q" type="search" placeholder="ค้นหารหัส ชื่อ หน่วยงาน…" value="' + esc(S.search) + '" aria-label="ค้นหาอุปกรณ์"></label></div>' +
+    '<div class="chips" role="group" aria-label="กรองตามสถานะ">' + chips.map(function (c) { return '<button type="button" class="chip' + (S.filter === c[0] ? ' on' : '') + '" data-filter="' + esc(c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div>' +
+    '<div class="ct" style="padding-top:8px"><div class="col">' + (items.length ? items.map(itemRow).join('') : '<div class="card empty">ไม่พบอุปกรณ์' + (list().length ? ' ตามเงื่อนไขที่เลือก' : '') + '</div>') + '</div></div>';
+  if (can('manage')) h += '<button type="button" class="fab" aria-label="เพิ่มอุปกรณ์" data-nav="form">' + svg('plus', 26, 2.2) + '</button>';
+  return h + tabbar('list');
+}
+
+function viewScan() {
+  return head('สแกน QR Code', 'สแกนสติกเกอร์ที่ติดบนตัวอุปกรณ์') +
+    '<div class="ct"><div class="vf"><video id="video" playsinline muted hidden></video><div class="box"><i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i><i class="ln"></i></div><div class="hint" id="scanMsg">กดเปิดกล้อง แล้วเล็งไปที่ QR Code บนอุปกรณ์</div></div><canvas id="grab" hidden></canvas>' +
+    '<div class="row"><button type="button" class="btn pri" id="camBtn" data-act="cam">เปิดกล้อง</button><label class="btn" style="cursor:pointer">เลือกรูป QR<input type="file" id="qrFile" accept="image/*" hidden></label></div>' +
+    '<div class="card col"><label for="manual" class="note" style="font-weight:600">กล้องใช้ไม่ได้? พิมพ์รหัสอุปกรณ์แทน</label><div class="row"><input id="manual" class="inp" placeholder="เช่น IT-NB-0007" autocomplete="off"><button type="button" class="btn pri fix" data-act="manual">ค้นหา</button></div></div></div>' + tabbar('scan');
+}
+
+function viewDetail(code) {
+  var it = S.items[code];
+  if (!it) return headBack('ไม่พบอุปกรณ์', '', 'list') + '<div class="ct"><div class="card empty">ไม่พบอุปกรณ์รหัส ' + esc(code) + '</div></div>' + tabbar('list');
+  var hist = (it.history || []).slice().reverse().map(function (x) {
+    return '<div>' + esc(new Date(x.at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })) + ' · ' + (x.from ? esc(x.from) + ' → ' : '') + '<b>' + esc(x.to) + '</b>' + (x.note ? ' · ' + esc(x.note) : '') + (x.by ? ' · โดย ' + esc(x.by) : '') + '</div>';
+  }).join('');
+  var h = headBack(it.code, it.name, 'list', '<span style="margin-right:8px;margin-top:8px">' + badge(effStatus(it)) + '</span>') + '<div class="ct">';
+  if (can('qr')) h += '<div class="card qrcard"><canvas id="qrc" aria-label="QR Code ของอุปกรณ์ ' + esc(it.code) + '"></canvas><div class="col"><div class="note">QR Code ประจำอุปกรณ์ พิมพ์เป็นสติกเกอร์ติดบนเครื่อง</div><button type="button" class="btn" data-act="sticker" data-code="' + esc(it.code) + '" style="height:44px;font-size:15px">ดาวน์โหลดสติกเกอร์</button><div id="stfb"></div></div></div>';
+  var r = remainMonths(it);
+  h += '<div class="card kv"><div><span>ประเภท</span><span>' + esc(it.category || '-') + '</span></div><div><span>ยี่ห้อ/รุ่น</span><span>' + esc(it.brand || '-') + '</span></div><div><span>หมายเลขเครื่อง</span><span>' + esc(it.serial || '-') + '</span></div><div><span>หน่วยงาน</span><span>' + esc(it.dept || '-') + '</span></div><div><span>วันที่จัดซื้อ</span><span>' + esc(fmtDate(it.purchaseDate)) + '</span></div><div><span>เกณฑ์อายุ</span><span>' + esc(it.lifespanYears) + ' ปี</span></div><div><span>อายุการใช้งาน</span><span style="' + (r < 0 ? 'color:var(--bad);font-weight:600' : '') + '">' + esc(fmtMonths(ageMonths(it)) + (r < 0 ? ' · เกินกำหนด ' + fmtMonths(-r) : ' · เหลือ ' + fmtMonths(r))) + '</span></div></div>';
+  if (can('status')) h += '<div class="card col"><label for="snew" style="font-weight:600">ปรับปรุงสถานะ</label><div class="row"><select id="snew" class="inp">' + STATUSES.map(function (s) { return '<option' + (it.status === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select><button type="button" class="btn pri fix" data-act="setstatus" data-code="' + esc(it.code) + '">บันทึก</button></div><input id="snote" class="inp" placeholder="หมายเหตุ (ถ้ามี)"></div>';
+  h += '<div class="hist"><div style="font-weight:600;color:var(--text);font-size:15px">ประวัติการเปลี่ยนแปลง</div>' + (hist || '<div>ยังไม่มีประวัติ</div>') + '</div>';
+  if (can('manage')) h += '<div class="row"><button type="button" class="btn" data-nav="form" data-code="' + esc(it.code) + '">แก้ไขข้อมูล</button><button type="button" class="btn danger" data-act="del" data-code="' + esc(it.code) + '">ลบอุปกรณ์</button></div>';
+  return h + '</div>' + tabbar('list');
+}
+
+function nextCode(cat) {
+  var p = 'IT-' + (PREFIX[cat] || 'OT') + '-', max = 0;
+  list().forEach(function (i) { if (i.code.indexOf(p) === 0) { var n = parseInt(i.code.slice(p.length), 10); if (n > max) max = n; } });
+  return p + ('000' + (max + 1)).slice(-4);
+}
+function viewForm(code) {
+  var ex = code ? S.items[code] : null;
+  var it = ex || { code: '', name: '', category: CATS[1], brand: '', serial: '', purchaseDate: new Date().toISOString().slice(0, 10), lifespanYears: DEFAULT_LIFE_YEARS, dept: '' };
+  return headBack(ex ? 'แก้ไขอุปกรณ์' : 'เพิ่มอุปกรณ์', '', ex ? 'detail' : 'list').replace('data-nav="' + (ex ? 'detail' : 'list') + '"', 'data-nav="' + (ex ? 'detail' : 'list') + '"' + (ex ? ' data-code="' + esc(ex.code) + '"' : '')) +
+    '<form data-form="item" data-edit="' + (ex ? esc(ex.code) : '') + '" class="ct" autocomplete="off">' +
+    '<div class="f"><label for="fc">ประเภท</label><select id="fc">' + CATS.map(function (c) { return '<option' + (it.category === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="f"><label for="fcode">รหัสอุปกรณ์ (เก็บใน QR Code)</label><input id="fcode" value="' + esc(it.code || nextCode(it.category)) + '"' + (ex ? ' readonly' : '') + ' style="font-weight:600"></div>' +
+    '<div class="f"><label for="fn">ชื่ออุปกรณ์</label><input id="fn" value="' + esc(it.name) + '" placeholder="เช่น โน้ตบุ๊กฝ่ายบัญชี" required></div>' +
+    '<div class="f2"><div class="f"><label for="fb">ยี่ห้อ/รุ่น</label><input id="fb" value="' + esc(it.brand) + '"></div><div class="f"><label for="fs">หมายเลขเครื่อง</label><input id="fs" value="' + esc(it.serial) + '"></div>' +
+    '<div class="f"><label for="fd">วันที่จัดซื้อ</label><input id="fd" type="date" value="' + esc(it.purchaseDate) + '" required></div><div class="f"><label for="fl">เกณฑ์อายุ (ปี)</label><input id="fl" type="number" min="1" max="30" step="0.5" value="' + esc(it.lifespanYears) + '"></div></div>' +
+    '<div class="f"><label for="fdp">หน่วยงาน/ผู้รับผิดชอบ</label><input id="fdp" value="' + esc(it.dept) + '"></div>' +
+    '<div class="note">เมื่อบันทึกแล้ว ระบบจะสร้าง QR Code ให้ทันที เพื่อดาวน์โหลดไปพิมพ์เป็นสติกเกอร์</div>' +
+    '<div class="stickybar"><button type="button" class="btn" style="flex:1" data-nav="' + (ex ? 'detail' : 'list') + '"' + (ex ? ' data-code="' + esc(ex.code) + '"' : '') + '>ยกเลิก</button><button type="submit" class="btn pri" style="flex:2">' + (ex ? 'บันทึกการแก้ไข' : 'บันทึกและสร้าง QR') + '</button></div></form>';
+}
+
+function band(it) { var y = ageMonths(it) / 12; return y < 3 ? 'น้อยกว่า 3 ปี' : (y <= 5 ? '3 – 5 ปี' : 'มากกว่า 5 ปี'); }
+function viewReport() {
+  var items = list(), total = items.length;
+  function pct(n) { return total ? (n * 100 / total).toFixed(2) : '0.00'; }
+  var byS = {}; ALL.forEach(function (s) { byS[s] = 0; }); items.forEach(function (i) { byS[effStatus(i)]++; });
+  var BANDS = ['น้อยกว่า 3 ปี', '3 – 5 ปี', 'มากกว่า 5 ปี'], byB = {}; BANDS.forEach(function (b) { byB[b] = 0; }); items.forEach(function (i) { byB[band(i)]++; });
+  var byC = {}; items.forEach(function (i) { var c = i.category || 'ไม่ระบุ'; byC[c] = (byC[c] || 0) + 1; });
+  function tbl(title, rows, headTxt) {
+    return '<div class="col" style="gap:6px"><h2 style="margin:0;font-size:16px;font-weight:600">' + esc(title) + '</h2><div class="tbl"><div class="tr h"><span>' + esc(headTxt) + '</span><span>จำนวน</span><span>ร้อยละ</span></div>' +
+      rows.map(function (r) { return '<div class="tr"><span>' + esc(r[0]) + '</span><span>' + r[1] + '</span><span>' + pct(r[1]) + '</span></div>'; }).join('') +
+      '<div class="tr t"><span>รวม</span><span>' + total + '</span><span>' + (total ? '100.00' : '0.00') + '</span></div></div></div>';
+  }
+  return head('รายงานสรุป', 'คำนวณจากข้อมูลที่บันทึกในระบบ', '<button type="button" class="hd-btn" data-act="csv"' + (total ? '' : ' disabled') + '>ส่งออก CSV</button>') +
+    '<div class="ct"><div class="card row" style="justify-content:space-between"><label for="am" class="note" style="font-weight:600;flex:1">แจ้งเตือนเมื่อเหลืออายุไม่เกิน</label><select id="am" class="inp" style="width:auto;flex:0 0 auto;height:44px">' + [3, 6, 9, 12].map(function (m) { return '<option value="' + m + '"' + (S.alert === m ? ' selected' : '') + '>' + m + ' เดือน</option>'; }).join('') + '</select></div>' +
+    tbl('จำแนกตามสถานะ', ALL.map(function (s) { return [s, byS[s]]; }), 'สถานะ') + tbl('จำแนกตามอายุการใช้งาน', BANDS.map(function (b) { return [b, byB[b]]; }), 'อายุการใช้งาน') + tbl('จำแนกตามประเภท', Object.keys(byC).map(function (c) { return [c, byC[c]]; }), 'ประเภท') +
+    '<div class="card col"><div class="note" style="font-weight:600">สำรอง/กู้คืนข้อมูล</div><div class="row"><button type="button" class="btn" data-act="backup">สำรองข้อมูล (JSON)</button><label class="btn" style="cursor:pointer">นำเข้าข้อมูลสำรอง<input type="file" id="restoreFile" accept="application/json,.json" hidden></label></div></div></div>' + tabbar('report');
+}
+
+/* ================= แสดงผล ================= */
+function render() {
+  var v = S.view.name, h;
+  if (!S.users.length) { v = 'setup'; S.view.name = 'setup'; }
+  else if (!S.session && v !== 'login') { v = 'login'; S.view.name = 'login'; }
+  if (v === 'setup') h = viewSetup();
+  else if (v === 'login') h = viewLogin();
+  else {
+    var guard = { form: 'manage', report: 'report' }[v];
+    if (guard && !can(guard)) { v = 'dash'; S.view = { name: 'dash' }; }
+    h = ({ dash: viewDash, list: viewList, scan: viewScan, detail: function () { return viewDetail(S.view.param); }, form: function () { return viewForm(S.view.param); }, report: viewReport }[v] || viewDash)();
+  }
+  $('#app').innerHTML = h;
+  if (v === 'detail' && can('qr') && S.items[S.view.param]) { try { drawQR($('#qrc'), S.view.param, 240); } catch (e) {} }
+}
+
+/* ================= QR Code (UC-03) ================= */
+function drawQR(canvas, text, size) {
+  var G = QR.encode(text), n = G.length, quiet = 2, cell = Math.max(2, Math.floor(size / (n + quiet * 2))), px = cell * (n + quiet * 2);
+  canvas.width = px; canvas.height = px;
+  var c = canvas.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, px, px); c.fillStyle = '#000';
+  for (var r = 0; r < n; r++) for (var k = 0; k < n; k++) if (G[r][k]) c.fillRect((k + quiet) * cell, (r + quiet) * cell, cell, cell);
+}
+function stickerCanvas(it) {
+  var cv = document.createElement('canvas'); cv.width = 560; cv.height = 700; var c = cv.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, 560, 700); c.strokeStyle = '#17324F'; c.lineWidth = 6;
+  if (c.roundRect) { c.beginPath(); c.roundRect(6, 6, 548, 688, 24); c.stroke(); } else c.strokeRect(6, 6, 548, 688);
+  c.textAlign = 'center'; c.fillStyle = '#17324F'; c.font = '700 34px "IBM Plex Sans Thai",Sarabun,Tahoma,sans-serif'; c.fillText('ครุภัณฑ์คอมพิวเตอร์', 280, 64);
+  var q = document.createElement('canvas'); drawQR(q, it.code, 420); c.drawImage(q, 70, 100, 420, 420);
+  c.fillStyle = '#000'; c.font = '700 36px "IBM Plex Sans Thai",Sarabun,Tahoma,sans-serif'; c.fillText(it.code, 280, 578);
+  c.fillStyle = '#333'; c.font = '400 28px "IBM Plex Sans Thai",Sarabun,Tahoma,sans-serif'; c.fillText('สแกนเพื่อดูสถานะ/อายุการใช้งาน', 280, 630);
+  return cv;
+}
+function download(filename, data, type) {
+  var b = data instanceof Blob ? data : new Blob([data], { type: type || 'text/plain' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+}
+function downloadSticker(code) { var it = S.items[code]; if (!it) return; stickerCanvas(it).toBlob(function (b) { download(code + '.png', b); }, 'image/png'); }
+
+/* ================= การทำงานกับข้อมูล ================= */
+function addHist(it, from, to, note) { it.history = (it.history || []).concat([{ at: new Date().toISOString(), from: from, to: to, note: note || '', by: S.session.username }]); }
+function submitItem(form) {
+  var edit = form.getAttribute('data-edit'), code = $('#fcode').value.trim();
+  if (!/^[A-Za-z0-9_.:@+~-]{1,60}$/.test(code)) return toast('รหัสใช้ได้เฉพาะตัวอักษรอังกฤษ ตัวเลข และ - _ . (ไม่เกิน 60 ตัว)');
+  var name = $('#fn').value.trim(); if (!name) return toast('กรุณากรอกชื่ออุปกรณ์');
+  if (!edit && S.items[code]) return toast('รหัสนี้มีอยู่แล้ว');
+  if (!parseD($('#fd').value)) return toast('กรุณาระบุวันที่จัดซื้อ');
+  var prev = edit ? S.items[edit] : null;
+  var it = prev || { code: code, status: 'ใช้งานปกติ', history: [] };
+  it.name = name; it.category = $('#fc').value; it.brand = $('#fb').value.trim(); it.serial = $('#fs').value.trim();
+  it.purchaseDate = $('#fd').value; it.lifespanYears = parseFloat($('#fl').value) || DEFAULT_LIFE_YEARS; it.dept = $('#fdp').value.trim();
+  if (!prev) addHist(it, '', 'ใช้งานปกติ', 'เพิ่มข้อมูลอุปกรณ์'); else addHist(it, it.status, it.status, 'แก้ไขข้อมูลอุปกรณ์');
+  S.items[code] = it;
+  if (saveItems()) { toast('บันทึกแล้ว'); nav('detail', code); }
+}
+function setStatus(code) {
+  var it = S.items[code]; if (!it || !can('status')) return;
+  var to = $('#snew').value, note = $('#snote').value.trim();
+  if (to === it.status && !note) return toast('สถานะไม่เปลี่ยนแปลง');
+  addHist(it, it.status, to, note); it.status = to;
+  if (saveItems()) { toast('บันทึกสถานะแล้ว'); render(); }
+}
+function delItem(code) {
+  if (!can('manage') || !confirm('ลบอุปกรณ์ ' + code + ' ออกจากระบบ?')) return;
+  delete S.items[code]; if (saveItems()) { toast('ลบแล้ว'); nav('list'); }
+}
+function addDemo() {
+  if (!can('manage')) return;
+  var now = new Date();
+  function back(m) { var d = new Date(now.getFullYear(), now.getMonth() - m, Math.min(now.getDate(), 28)); return d.toISOString().slice(0, 10); }
+  var rows = [['PC', 'คอมพิวเตอร์ตั้งโต๊ะ', 8, 'ใช้งานปกติ'], ['PC', 'คอมพิวเตอร์ตั้งโต๊ะ', 30, 'ใช้งานปกติ'], ['PC', 'คอมพิวเตอร์ตั้งโต๊ะ', 57, 'ใช้งานปกติ'], ['NB', 'โน้ตบุ๊ก', 44, 'ใช้งานปกติ'], ['NB', 'โน้ตบุ๊ก', 70, 'อยู่ระหว่างซ่อม'], ['PR', 'เครื่องพิมพ์', 50, 'ใช้งานปกติ'], ['MN', 'จอภาพ', 20, 'ชำรุด'], ['PC', 'คอมพิวเตอร์ตั้งโต๊ะ', 90, 'จำหน่ายออก']];
+  rows.forEach(function (r, i) {
+    var code = 'IT-DEMO-' + r[0] + '-' + ('0' + (i + 1)).slice(-2);
+    var it = { code: code, name: '[ตัวอย่าง] ' + r[1] + ' ' + (i + 1), category: r[1], brand: '', serial: '', purchaseDate: back(r[2]), lifespanYears: DEFAULT_LIFE_YEARS, dept: '(ตัวอย่าง)', status: r[3], demo: true, history: [] };
+    addHist(it, '', r[3], 'ข้อมูลตัวอย่างสำหรับทดลองใช้'); S.items[code] = it;
+  });
+  if (saveItems()) { toast('เพิ่มข้อมูลตัวอย่างแล้ว'); render(); }
+}
+function removeDemo() { if (!can('manage') || !confirm('ลบข้อมูลตัวอย่างทั้งหมด?')) return; Object.keys(S.items).forEach(function (k) { if (S.items[k].demo) delete S.items[k]; }); saveItems(); toast('ลบข้อมูลตัวอย่างแล้ว'); render(); }
+function exportCsv() {
+  if (!can('report')) return;
+  var head = ['รหัส', 'ชื่อ', 'ประเภท', 'ยี่ห้อ/รุ่น', 'หมายเลขเครื่อง', 'หน่วยงาน', 'วันที่จัดซื้อ', 'เกณฑ์อายุ(ปี)', 'อายุที่ใช้งานมา(เดือน)', 'เหลือ(เดือน)', 'สถานะ'];
+  function q(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+  var rows = list().sort(function (a, b) { return a.code.localeCompare(b.code); }).map(function (i) { return [i.code, i.name, i.category, i.brand, i.serial, i.dept, i.purchaseDate, i.lifespanYears, ageMonths(i), remainMonths(i), effStatus(i)].map(q).join(','); });
+  download('รายการอุปกรณ์.csv', '\ufeff' + [head.map(q).join(',')].concat(rows).join('\r\n'), 'text/csv;charset=utf-8');
+}
+function restore(file) {
+  if (!can('manage') || !file) return;
+  file.text().then(function (s) {
+    try { var o = JSON.parse(s), n = 0; Object.keys(o).forEach(function (k) { if (o[k] && o[k].code && /^[A-Za-z0-9_.:@+~-]{1,60}$/.test(o[k].code)) { S.items[o[k].code] = o[k]; n++; } }); saveItems(); render(); toast('นำเข้าข้อมูลสำรอง ' + n + ' รายการ'); }
+    catch (e) { toast('ไฟล์สำรองไม่ถูกต้อง'); }
+  });
+}
+
+/* ================= จัดการบัญชีผู้ใช้ (ผู้ดูแลระบบ) ================= */
+function openModal(html) { var o = $('#overlay'); o.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' + html + '</div>'; o.hidden = false; }
+function closeModal() { var o = $('#overlay'); o.hidden = true; o.innerHTML = ''; }
+function openUsers() {
+  if (!can('users')) return;
+  openModal('<h3>บัญชีผู้ใช้</h3><div class="col">' + S.users.map(function (u) {
+    var me = u.username === S.session.username;
+    return '<div class="card row" style="justify-content:space-between"><div style="flex:1"><b>' + esc(u.username) + '</b><div class="note">' + esc(ROLE_LABEL[u.role]) + (me ? ' (คุณ)' : '') + '</div></div>' + (me ? '' : '<button type="button" class="btn danger fix" style="height:40px;font-size:14px" data-act="deluser" data-u="' + esc(u.username) + '">ลบ</button>') + '</div>';
+  }).join('') + '</div><form data-form="newuser" class="col" autocomplete="off"><div class="note" style="font-weight:600">เพิ่มบัญชีใหม่</div><div class="f"><label for="nu">ชื่อผู้ใช้</label><input id="nu" required></div><div class="f"><label for="np">รหัสผ่าน (อย่างน้อย 6 ตัว)</label><input id="np" type="password" required></div><div class="f"><label for="nr">บทบาท</label><select id="nr"><option value="staff">เจ้าหน้าที่</option><option value="admin">ผู้ดูแลระบบ</option></select></div><div class="err" id="err2"></div><div class="row"><button type="button" class="btn" data-act="closem">ปิด</button><button type="submit" class="btn pri">เพิ่มบัญชี</button></div></form>');
+}
+
+/* ================= สแกน QR (UC-04) ================= */
+var stream = null, scanTimer = null, detector = null;
+try { if ('BarcodeDetector' in window) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; }
+function setScanMsg(t) { var m = $('#scanMsg'); if (m) m.textContent = t; }
+function stopCam() {
+  clearInterval(scanTimer); scanTimer = null;
+  if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  var v = $('#video'); if (v) { v.hidden = true; v.srcObject = null; }
+  var b = $('#camBtn'); if (b) b.textContent = 'เปิดกล้อง';
+}
+function decodeSource(src, w, h) {
+  var p = Promise.resolve(null);
+  if (detector) p = detector.detect(src).then(function (r) { return r && r.length ? r[0].rawValue : null; }).catch(function () { return null; });
+  return p.then(function (r) {
+    if (r) return r;
+    if (window.jsQR) { var cv = $('#grab'), x = cv.getContext('2d', { willReadFrequently: true }); cv.width = w; cv.height = h; x.drawImage(src, 0, 0, w, h); var d = x.getImageData(0, 0, w, h), q = window.jsQR(d.data, w, h); if (q) return q.data; }
+    return null;
+  });
+}
+function handleCode(raw) {
+  var code = String(raw || '').trim(); if (!code) return;
+  if (S.items[code]) { stopCam(); nav('detail', code); }
+  else { setScanMsg('ไม่พบอุปกรณ์รหัส “' + code + '” ในระบบ'); toast('ไม่พบข้อมูลอุปกรณ์รหัสนี้'); }
+}
+function toggleCam() {
+  if (stream) { stopCam(); setScanMsg('กดเปิดกล้อง แล้วเล็งไปที่ QR Code บนอุปกรณ์'); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return setScanMsg('เบราว์เซอร์นี้ไม่รองรับกล้อง กรุณาพิมพ์รหัสหรือเลือกรูป QR แทน');
+  if (!detector && !window.jsQR) return setScanMsg('ยังไม่มีตัวถอดรหัส QR (ต้องเชื่อมต่ออินเทอร์เน็ตครั้งแรก) กรุณาพิมพ์รหัสแทน');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }).then(function (s) {
+    stream = s; var v = $('#video'); v.srcObject = s; v.hidden = false;
+    return v.play().then(function () {
+      $('#camBtn').textContent = 'ปิดกล้อง'; setScanMsg('เล็งกล้องไปที่ QR Code');
+      scanTimer = setInterval(function () {
+        if (!v.videoWidth) return;
+        var w = Math.min(640, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
+        decodeSource(v, w, h).then(function (r) { if (r) handleCode(r); });
+      }, 300);
+    });
+  }).catch(function () { stopCam(); setScanMsg('เปิดกล้องไม่ได้ (ยังไม่ได้อนุญาต หรือหน้านี้ไม่รองรับกล้อง) — พิมพ์รหัสอุปกรณ์แทนได้'); });
+}
+function scanFile(f) {
+  if (!f) return;
+  if (!detector && !window.jsQR) { setScanMsg('ตัวถอดรหัส QR ยังโหลดไม่สำเร็จ (ต้องต่ออินเทอร์เน็ตและไม่ถูกบล็อก) — พิมพ์รหัสอุปกรณ์แทนได้'); toast('ตัวถอดรหัส QR ยังโหลดไม่สำเร็จ'); return; }
+  createImageBitmap(f).then(function (bm) {
+    var w = Math.min(1200, bm.width), h = Math.round(w * bm.height / bm.width);
+    return decodeSource(bm, w, h).then(function (r) { if (r) handleCode(r); else { setScanMsg('ตัวถอดรหัสทำงานแล้วแต่ไม่พบ QR ในรูปนี้ — ใช้ไฟล์สติกเกอร์ที่ดาวน์โหลดจากแอปโดยตรง'); toast('ไม่พบ QR ในรูปนี้'); } });
+  }).catch(function () { toast('เปิดรูปไม่ได้'); });
+}
+
+/* ================= เหตุการณ์ ================= */
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-nav],[data-act],[data-filter]'); if (!t) return;
+  if (t.hasAttribute('data-filter')) { S.filter = t.getAttribute('data-filter'); render(); return; }
+  var n = t.getAttribute('data-nav');
+  if (n) { nav(n, t.getAttribute('data-code') || undefined); return; }
+  var a = t.getAttribute('data-act'), c = t.getAttribute('data-code');
+  if (a === 'logout') logout(); else if (a === 'cam') toggleCam(); else if (a === 'manual') handleCode($('#manual').value);
+  else if (a === 'setstatus') setStatus(c); else if (a === 'sticker') downloadSticker(c); else if (a === 'del') delItem(c);
+  else if (a === 'demo') addDemo(); else if (a === 'undemo') removeDemo(); else if (a === 'csv') exportCsv();
+  else if (a === 'backup') { if (can('manage')) download('qr-tracker-backup.json', JSON.stringify(S.items, null, 2), 'application/json'); }
+  else if (a === 'users') openUsers(); else if (a === 'closem') closeModal();
+  else if (a === 'deluser') { var u = t.getAttribute('data-u'); if (can('users') && confirm('ลบบัญชี ' + u + ' ?')) { S.users = S.users.filter(function (x) { return x.username !== u; }); saveUsers(); openUsers(); toast('ลบบัญชีแล้ว'); } }
+});
+document.addEventListener('keydown', function (e) {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][data-nav]')) { e.preventDefault(); e.target.click(); }
+  if (e.key === 'Enter' && e.target.id === 'manual') handleCode(e.target.value);
+});
+document.addEventListener('input', function (e) {
+  if (e.target.id === 'q') { S.search = e.target.value; var pos = e.target.selectionStart; render(); var q = $('#q'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }
+});
+document.addEventListener('change', function (e) {
+  var id = e.target.id;
+  if (id === 'am') { S.alert = parseInt(e.target.value, 10); jset(localStorage, K.alert, S.alert); render(); }
+  else if (id === 'qrFile') { scanFile(e.target.files[0]); e.target.value = ''; }
+  else if (id === 'restoreFile') { restore(e.target.files[0]); e.target.value = ''; }
+  else if (id === 'fc' && !$('#fcode').readOnly) { $('#fcode').value = nextCode(e.target.value); }
+});
+document.addEventListener('submit', function (e) {
+  var f = e.target, kind = f.getAttribute('data-form'); if (!kind) return; e.preventDefault();
+  var err = $('#err'), err2 = $('#err2');
+  if (kind === 'setup') {
+    var u = $('#su').value.trim(), p = $('#sp').value, p2 = $('#sp2').value, m = validUser(u, p);
+    if (m) { err.textContent = m; return; } if (p !== p2) { err.textContent = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน'; return; }
+    if (addUser(u, p, 'admin') && login(u, p)) { toast('สร้างบัญชีผู้ดูแลระบบแล้ว'); nav('dash'); }
+  } else if (kind === 'login') {
+    if (login($('#lu').value, $('#lp').value)) nav('dash'); else err.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+  } else if (kind === 'item') { if (can('manage')) submitItem(f); }
+  else if (kind === 'newuser') {
+    if (!can('users')) return;
+    var nu = $('#nu').value.trim(), np = $('#np').value, mm = validUser(nu, np);
+    if (mm) { err2.textContent = mm; return; } if (findUser(nu)) { err2.textContent = 'มีชื่อผู้ใช้นี้อยู่แล้ว'; return; }
+    if (addUser(nu, np, $('#nr').value)) { toast('เพิ่มบัญชีแล้ว'); openUsers(); }
+  }
+});
+$('#overlay').addEventListener('click', function (e) { if (e.target.id === 'overlay') closeModal(); });
+
+/* ================= เริ่มต้น ================= */
+S.items = jget(localStorage, K.items, {});
+S.users = jget(localStorage, K.users, []);
+var a0 = parseInt(jget(localStorage, K.alert, 6), 10); if (a0 > 0) S.alert = a0;
+var ss = jget(sessionStorage, K.session, null);
+if (ss && findUser(ss.username)) S.session = { username: ss.username, role: findUser(ss.username).role };
+render();
+})();
+
+</script>
+</body>
+</html>
